@@ -8,32 +8,38 @@ __lua__
 spd=2
 blockoverlap=true
 colliders={}
+drawcolliders=true
 
 function _init()
-	a=makeobj(32,32,8,8,32,32,8,8)
-	b=makeobj(96,32,16,16,96,32,16,16)
-	c=makeobj(48,64,40,14,48,64,40,14)
+	a=makeobj(32,32,8,8,32,32,8,8,8)
+	b=makeobj(96,32,16,16,96,32,16,16,2)
+	c=makeobj(48,64,40,14,48,64,40,14,9)
+	d=makeobj(32,96,8,8,32,96,8,8,1)
 
+	add(colliders,a)
 	add(colliders,b)
 	add(colliders,c)
+	add(colliders,d)
 end
 
 function _update60()
 	doinput()
-	moveobj(a)
+	a.moveobj()
+	d.moveobj()
 end
 
 function _draw()
 	cls()
 	
-	drawobj(a,8)
-	drawcollider(a,11)
-	
-	drawobj(b,2)
-	drawcollider(b,3)
+	for c in all(colliders) do
+		c.drawobj()
 
-	drawobj(c,9)
-	drawcollider(c,10)
+		if (drawcolliders) then
+			c.drawcollider()
+		end
+	end
+
+	
 
 	print("blockoverlap: "..(blockoverlap and 'true' or 'false'))
 
@@ -56,9 +62,39 @@ function doinput()
 	if btnp(❎) then
 		blockoverlap = not blockoverlap
 	end
+
+	a.dx=0
+	a.dy=0
+	if btn(⬅️,0) then
+		a.dx=-spd
+	end
+	if btn(➡️,0) then
+		a.dx=spd
+	end
+	if btn(⬆️,0) then
+		a.dy=-spd
+	end
+	if btn(⬇️,0) then
+		a.dy=spd
+	end
+
+	d.dx=0
+	d.dy=0
+	if btn(⬅️,1) then
+		d.dx=-spd
+	end
+	if btn(➡️,1) then
+		d.dx=spd
+	end
+	if btn(⬆️,1) then
+		d.dy=-spd
+	end
+	if btn(⬇️,1) then
+		d.dy=spd
+	end
 end
 -->8
-function makeobj(ox,oy,ow,oh,ocx,ocy,ocw,och)
+function makeobj(ox,oy,ow,oh,ocx,ocy,ocw,och,col)
 	--add a collision/overlap structure?
 	--include
 		--side(s)
@@ -79,44 +115,88 @@ function makeobj(ox,oy,ow,oh,ocx,ocy,ocw,och)
 		ch=och,
 		cx1=ocx+ocw,
 		cy1=ocy+och,
+		colour=col,
 		--move delta
 		dx=0,
 		dy=0
 	}
+
+	function o:drawobj()
+		rectfill(o.x,o.y,o.x1,o.y1,o.colour)
+	end
+
+	function o:drawcollider()
+		rect(o.cx,o.cy,o.cx1,o.cy1,11)
+	end
+
+	function o:moveobj()
+		if blockoverlap then
+			o.movewithcollision()
+		else
+			o.updateobjposition()
+			o.updatecolliderposition()
+		end
+	end
+
+	function o:movewithcollision()
+		--last good deltas
+		lgdx,lgdy=0,0
+
+		--these iterators are required for the for loops to move in the correct direction
+		local dxi = 1
+		if o.dx < 0 then dxi = -1 end
+
+		local dyi = 1
+		if o.dy < 0 then dyi = -1 end
+
+		for nx=0,o.dx,dxi do
+			for ny=0,o.dy,dyi do
+				local ocx=o.cx+nx
+				local ocy=o.cy+ny
+				local ocx1=o.cx1+nx
+				local ocy1=o.cy1+ny
+				local posgood = true
+
+				for col in all(colliders) do
+					-- exclude self
+					if (col ~= o) then
+						if (overlap(ocx,ocy,ocx1,ocy1,col.cx,col.cy,col.cx1,col.cy1)) then
+							posgood = false;
+							break
+						end
+					end
+				end
+
+				if posgood then
+					lgdx,lgdy=nx,ny
+				end
+			end
+		end
+
+		function o:updateobjposition()
+			o.x+=o.dx
+			o.y+=o.dy
+			o.x1=o.x+o.w
+			o.y1=o.y+o.h
+		end
+
+		function o:updatecolliderposition()
+			o.cx+=o.dx
+			o.cy+=o.dy
+			o.cx1=o.cx+o.w
+			o.cy1=o.cy+o.h
+		end
+
+		-- set new, good delta for movement
+		o.dx,o.dy=lgdx,lgdy
+		o.updateobjposition()
+		o.updatecolliderposition()
+	end
+
 	return o
 end
 
-function moveobj(o)
-	o.dx=0
-	o.dy=0
-	if btn(⬅️) then
-		o.dx=-spd
-	end
-	if btn(➡️) then
-		o.dx=spd
-	end
-	if btn(⬆️) then
-		o.dy=-spd
-	end
-	if btn(⬇️) then
-		o.dy=spd
-	end
-	
-	if blockoverlap then
-		movewithcollision(o)
-	else
-		updateobjposition(o)
-		updatecolliderposition(o)
-	end
-end
 
-function drawobj(o,c)
-	rectfill(o.x,o.y,o.x1,o.y1,c)
-end
-
-function drawcollider(o,c)
-	rect(o.cx,o.cy,o.cx1,o.cy1,c)
-end
 -->8
 function overlap(ax,ay,ax1,ay1,bx,by,bx1,by1)
 	if	ax>bx1 or
@@ -136,59 +216,6 @@ function overlapobj(a,b)
 			return false
 	end
 	return true
-end
-
-function movewithcollision(a)
-	--last good deltas
-	lgdx,lgdy=0,0
-
-	--these iterators are required for the for loops to move in the correct direction
-	local dxi = 1
-	if a.dx < 0 then dxi = -1 end
-
-	local dyi = 1
-	if a.dy < 0 then dyi = -1 end
-
-	for nx=0,a.dx,dxi do
-		for ny=0,a.dy,dyi do
-			local acx=a.cx+nx
-			local acy=a.cy+ny
-			local acx1=a.cx1+nx
-			local acy1=a.cy1+ny
-			local posgood = true
-
-			for col in all(colliders) do
-				if (overlap(acx,acy,acx1,acy1,col.cx,col.cy,col.cx1,col.cy1)) then
-					posgood = false;
-					break
-				end
-			end
-
-			if posgood then
-				lgdx,lgdy=nx,ny
-			end
-
-		end
-	end
-
-	-- set new, good delta for movement
-	a.dx,a.dy=lgdx,lgdy
-	updateobjposition(a)
-	updatecolliderposition(a)
-end
-
-function updateobjposition(o)
-	o.x+=o.dx
-	o.y+=o.dy
-	o.x1=o.x+o.w
-	o.y1=o.y+o.h
-end
-
-function updatecolliderposition(o)
-	o.cx+=o.dx
-	o.cy+=o.dy
-	o.cx1=o.cx+o.w
-	o.cy1=o.cy+o.h
 end
 
 function overlapdir(a,b)
