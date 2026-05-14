@@ -1,8 +1,18 @@
 pico-8 cartridge // http://www.pico-8.com
-version 42
+version 43
 __lua__
 text="this is a test."
 text1="this is much longer text blah blah blah. in fact it is very long. expect much exposition here."
+
+texttable={
+	"this is the first entry in the text table",
+	"and this is the second"
+}
+texttableidx=1
+
+activetext=texttable
+
+textbutton=1
 
 windowstyles={}
 windows={}
@@ -27,7 +37,14 @@ function _init()
 end
 
 function _update()
-
+	if type(activetext) == "table" then
+		if btnp(❎) then
+			texttableidx+=1
+			if texttableidx>#texttable then
+				texttableidx=#texttable
+			end
+		end
+	end
 end
 
 function _draw()
@@ -43,7 +60,18 @@ function _draw()
 	]]
 	
 	drawwindow(windows[1],windowstyles.box)
-	drawtext(text1,windows[1],windowstyles.box)
+	if type(activetext) == "table" then
+		drawtext(activetext[texttableidx],windows[1],windowstyles.box)
+		if texttableidx<#texttable then
+			--drawtextbutton(windows[1],windowstyles.box)
+			textbutton=1
+		else 
+			textbutton=2	
+		end
+	else
+		drawtext(activetext,windows[1],windowstyles.box)
+	end
+	drawtextbutton(windows[1],windowstyles.box)
 	
 	drawwindow(windows[2],windowstyles.bubble)
 	drawtext(text,windows[2],windowstyles.bubble)
@@ -88,25 +116,31 @@ function drawdialoguebox()
 	]]
 end
 
+function drawtextbutton(w,st)
+	spr(textbutton,w.x1-st.bordx-st.padx-5,w.y1-st.bordy-st.pady-6)
+end
+
 function addwindow(wx,wy,ww,wh)
 	w={
 		x=wx,
 		y=wy,
-		w=wx+ww,
-		h=wy+wh
+		x1=wx+ww,
+		y1=wy+wh,
+		w=ww,
+		h=wh
 	}
 	return w
 end
 
 function drawwindow(w,st)
 	--draw border
-	rectfill(w.x,w.y,w.w,w.h,st.bordcol)
+	rectfill(w.x,w.y,w.x1,w.y1,st.bordcol)
 	--draw window
-	rectfill(w.x+st.bordx,w.y+st.bordy,w.w-st.bordx,w.h-st.bordy,st.bgcol)	
+	rectfill(w.x+st.bordx,w.y+st.bordy,w.x1-st.bordx,w.y1-st.bordy,st.bgcol)	
 end
 
 function drawtext(t,w,st)
-	local parsed=wraptext(t,w.w/4)
+	local parsed=wraptext(t,w.x1/4)
 	for i=1,#parsed do
 		print(parsed[i],w.x+st.bordx+st.padx,w.y+st.bordy+st.pady+i*6-6,st.textcol)
 	end
@@ -129,7 +163,7 @@ end
 function wordcounts(str)
 	local ret={}
 	local idx=1
-	-- gmatch does exist in pico8 but split does; you can iterate over that result
+	-- gmatch doesnt exist in pico8 but split does; you can iterate over that result
 	--for word in string.gmatch(str, "%w+") do
 	for word in all(split(str," ")) do
 		ret[idx]=#word
@@ -166,7 +200,11 @@ end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700000000000077700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000770000000000007d7d70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0007700000000000077d770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+007007000677776007d7d70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000006776000677760000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000660000066600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+__sfx__
+010100001705000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
